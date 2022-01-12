@@ -1,3 +1,9 @@
+@font-face {
+  font-family: 'Future';
+  src: local('Future'), url(./fonts/future.woff) format('woff');
+  /* other formats include: 'woff2', 'truetype, 'opentype',
+                            'embedded-opentype', and 'svg' */
+}
 body {
   padding: 0;
   margin: 0;
@@ -21,6 +27,27 @@ canvas {
 .top-score {
   right: 20px;
 }
+
+.welcome {
+  display: block;
+  position: absolute;
+  top: 16px;
+  z-index: 1;
+  font-size: 20px;
+  color:blue;
+  font-family: 'Future';
+}
+
+.titleLobby {
+  display: block;
+  position: absolute;
+  top: 16px;
+  z-index: 1;
+  font-size: 20px;
+  color:red;
+  font-family: 'Future';
+}
+
 .score {
   display: block;
   position: absolute;
@@ -39,7 +66,211 @@ canvas {
   text-align: center;
   line-height: 1.6;
 }
+
+.lobby {
+  display: block;
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 1;
+  font-size: 31px;
+  text-align: center;
+  line-height: 1.6;
+  font-family: 'Future';
+  color:greenyellow;
+}
+
+.pagination{
+  display: block;
+  position: absolute;
+  top: 70%;
+  left:5%;
+  z-index: 1;
+  font-size: 20px;
+}
+
+.creategame{
+  position: absolute;
+  top: 16%;
+  left: 8%;
+  transform: translate(-50%, -50%);
+  padding: 16px;
+  z-index: 1;
+  text-align: center;
+  font-family: 'Future';
+
+}
+
+.loginbutton{
+  position: absolute;
+  top: 16%;
+  left: 48%;
+  transform: translate(-50%, -50%);
+  padding: 16px;
+  z-index: 1;
+  text-align: center;
+}
+.pagebutton{
+  border: 4px solid #ffffff;
+  background-color: transparent;
+  color: #ffffff;
+  font-size: 10px;
+  padding: 10px 20px;
+  margin: 10px;
+  font-family: 'PT Mono', serif;
+  cursor: pointer;
+}
+.pagebutton:hover{
+  background-color: #ffffff;
+  color: #000000;
+}
+
+
+button{
+  border: 4px solid #ffffff;
+  background-color: transparent;
+  color: #ffffff;
+  font-size: 20px;
+  padding: 5px 10px;
+  margin: 5px;
+  font-family: 'Future', serif;
+  cursor: pointer;
+}
+button:hover{
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.joinbutton{
+  border: 4px solid #ffffff;
+  background-color: transparent;
+  color: #ffffff;
+  font-size: 10px;
+  padding: 10px 20px;
+  margin: 10px;
+  font-family: 'PT Mono', serif;
+  cursor: pointer;
+}
+.joinbutton:hover{
+  background-color: #ffffff;
+  color: #000000;
+}
+
+html {
+  font-family: 'helvetica neue', helvetica, arial, sans-serif;
+}
+
+thead th, tfoot th {
+  font-family: 'Future', cursive;
+}
+table {
+  table-layout: fixed;
+  width: 90%;
+  border-collapse: collapse;
+  border: 3px solid purple;
+}
+
+thead th:nth-child(1) {
+  width: 20%;
+}
+
+thead th:nth-child(2) {
+  width: 20%;
+}
+
+thead th:nth-child(3) {
+  width: 15%;
+}
+
+thead th:nth-child(4) {
+  width: 35%;
+}
+
+th, td {
+  padding: 2px;
+}
+
+th {
+  letter-spacing: 2px;
+}
+
+td {
+  letter-spacing: 1px;
+}
+
+tbody td {
+  text-align: center;
+  color:#000000;
+
+}
+
+tfoot th {
+  text-align: right;
+}
+
+thead, tfoot {
+  background: url('./images/asteroid3.jpg');
+  color: white;
+  text-shadow: 1px 1px 1px black;
+}
+thead th, tfoot th, tfoot td {
+  background: linear-gradient(to bottom, rgba(255,255,255,0.1), rgba(255,255,255,0.5));
+  border: 3px solid purple;
+}
+
+/* zebra striping */
+
+tbody tr:nth-child(odd) {
+  background-color: #ff33cc;
+}
+
+tbody tr:nth-child(even) {
+  background-color: #e495e4;
+}
+
+
+
+table {
+  background-color: #ff33cc;
+}
+
+
+.awaitingPlayer {
+  display: block;
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 1;
+  font-size: 61px;
+  text-align: center;
+  line-height: 1.6;
+  font-family: 'Future', cursive;
+  animation: opacity 2s ease-in-out infinite;
+  opacity: 1;
+  color:greenyellow;
+}
+
+
 .endgame{
+  display: block;
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, 0);
+  z-index: 1;
+  font-size: 61px;
+  text-align: center;
+  line-height: 1.6;
+  font-family: 'Future', cursive;
+  animation: opacity 2s ease-in-out infinite;
+  opacity: 1;
+  color:red;
+
+}
+
+.gametable{
   position: absolute;
   top: 50%;
   left: 50%;
@@ -48,17 +279,17 @@ canvas {
   z-index: 1;
   text-align: center;
 }
-button{
-  border: 4px solid #ffffff;
-  background-color: transparent;
-  color: #ffffff;
-  font-size: 20px;
-  padding: 10px 20px;
-  margin: 10px;
-  font-family: 'PT Mono', serif;
-  cursor: pointer;
-}
-button:hover{
-  background-color: #ffffff;
-  color: #000000;
+
+@keyframes opacity {
+  0% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0
+  }
+
+  100% {
+    opacity: 1;
+  }
 }

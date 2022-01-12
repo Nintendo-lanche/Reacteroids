@@ -1,8 +1,37 @@
 import Bullet from './Bullet';
 import Particle from './Particle';
 import { rotatePoint, randomNumBetween } from './helpers';
+import shipex from './sounds/shipex.mp3';   
+import { render } from '@testing-library/react';
+import UIfx from 'uifx'
+import rocket from './sounds/rocket.mp3';
+import laser from './sounds/laser.mp3';   
 
+const shots = new UIfx(
+  laser,
+  {
+    volume: 0.4, // number between 0.0 ~ 1.0
+    throttleMs: 10
+  }
+)
+
+ 
+const shipsound = new UIfx(
+  rocket,
+  {
+    volume: 0.4, // number between 0.0 ~ 1.0
+    throttleMs: 10
+  }
+)
+const explosion = new UIfx(
+  shipex,
+  {
+    volume: 0.4, // number between 0.0 ~ 1.0
+    throttleMs: 100
+  }
+)
 export default class Ship {
+
   constructor(args) {
     this.position = args.position
     this.velocity = {
@@ -17,16 +46,17 @@ export default class Ship {
     this.lastShot = 0;
     this.create = args.create;
     this.onDie = args.onDie;
-  }
-
+    this.name = args.name;
+  } 
+ 
   destroy(){
     this.delete = true;
-    this.onDie();
-
+    this.onDie();            
+   explosion.play();
     // Explode
     for (let i = 0; i < 60; i++) {
       const particle = new Particle({
-        lifeSpan: randomNumBetween(60, 100),
+        lifeSpan: randomNumBetween(60, 100), 
         size: randomNumBetween(1, 4),
         position: {
           x: this.position.x + randomNumBetween(-this.radius/4, this.radius/4),
@@ -51,6 +81,7 @@ export default class Ship {
   }
 
   accelerate(val){
+    shipsound.play();
     this.velocity.x -= Math.sin(-this.rotation*Math.PI/180) * this.speed;
     this.velocity.y -= Math.cos(-this.rotation*Math.PI/180) * this.speed;
 
@@ -71,6 +102,7 @@ export default class Ship {
     this.create(particle, 'particles');
   }
 
+  
   render(state){
     // Controls
     if(state.keys.up){
@@ -86,6 +118,7 @@ export default class Ship {
       const bullet = new Bullet({ship: this});
       this.create(bullet, 'bullets');
       this.lastShot = Date.now();
+      shots.play();
     }
 
     // Move
@@ -108,13 +141,25 @@ export default class Ship {
     if(this.position.y > state.screen.height) this.position.y = 0;
     else if(this.position.y < 0) this.position.y = state.screen.height;
 
+
+   
     // Draw
     const context = state.context;
     context.save();
     context.translate(this.position.x, this.position.y);
     context.rotate(this.rotation * Math.PI / 180);
-    context.strokeStyle = '#ffffff';
-    context.fillStyle = '#000000';
+     if(this.name=='player1')
+     {
+      context.strokeStyle = '#ff0000';
+      context.fillStyle = '#FF0000'; 
+     }
+  
+   else 
+   {
+    context.strokeStyle = '#0000FF';
+    context.fillStyle = '#0000FF'; 
+  }
+   
     context.lineWidth = 2;
     context.beginPath();
     context.moveTo(0, -15);

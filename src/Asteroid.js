@@ -1,15 +1,38 @@
 import Particle from './Particle';
 import { asteroidVertices, randomNumBetween } from './helpers';
+import UIfx from 'uifx'
 
+import astex from './sounds/astex.mp3';   
+const explode = new UIfx(
+  astex,
+  {
+    volume: 0.4, // number between 0.0 ~ 1.0
+    throttleMs: 10
+  }
+)
 export default class Asteroid {
   constructor(args) {
     this.position = args.position
+    if(!this.velocity)
     this.velocity = {
       x: randomNumBetween(-1.5, 1.5),
       y: randomNumBetween(-1.5, 1.5)
     }
+    else
+    {
+      this.velocity = {
+        x:args.velocity.x,
+        y:args.velocity.y
+
+      }
+    }
+
     this.rotation = 0;
-    this.rotationSpeed = randomNumBetween(-1, 1)
+    if(!this.rotationSpeed)
+       this.rotationSpeed = randomNumBetween(-1, 1)
+    else
+      this.rotationSpeed = args.rotationSpeed;
+      
     this.radius = args.size;
     this.score = (80/this.radius)*5;
     this.create = args.create;
@@ -17,10 +40,10 @@ export default class Asteroid {
     this.vertices = asteroidVertices(8, args.size)
   }
 
-  destroy(){
+  destroy(ship){
     this.delete = true;
-    this.addScore(this.score);
-
+    this.addScore(this.score,ship);
+    explode.play();
     // Explode
     for (let i = 0; i < this.radius; i++) {
       const particle = new Particle({
@@ -81,7 +104,9 @@ export default class Asteroid {
     context.save();
     context.translate(this.position.x, this.position.y);
     context.rotate(this.rotation * Math.PI / 180);
-    context.strokeStyle = '#FFF';
+    context.strokeStyle = '#00FF00';
+    context.fillStyle = '#00FF00'; 
+
     context.lineWidth = 2;
     context.beginPath();
     context.moveTo(0, -this.radius);
@@ -90,6 +115,7 @@ export default class Asteroid {
     }
     context.closePath();
     context.stroke();
+    context.fill();
     context.restore();
   }
 }
