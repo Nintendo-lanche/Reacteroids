@@ -1,0 +1,30 @@
+type = "directrequest"
+schemaVersion = 1
+name = "Chainlink Call Claim Bounty"
+contractAddress = "0xE31Cc94CFc1489B7Edd65f3D3a7aebE9A559F879"
+maxTaskDuration = "0s"
+observationSource = """
+externalJobID ="fc3ea215bb9e44e088107b29bb495e2d"
+// First, we parse the request log and the CBOR payload inside of it
+decode_log  [type="ethabidecodelog"  abi="OracleRequest(bytes32 indexed specId, address requester, bytes32 requestId, uint256 payment, address callbackAddr, bytes4 callbackFunctionId, uint256 cancelExpiration, uint256 dataVersion, bytes data)" data="$(jobRun.logData)"  topics="$(jobRun.logTopics)"]
+
+decode_cbor [type="cborparse" data="$(decode_log.data)"]
+
+// Then, we use the decoded request parameters to make an HTTP fetch
+fetch [type="http" method=POST url="$(decode_cbor.fetchUrl)" ]
+parse [type="jsonparse" path="result" data="$(fetch)"]
+
+// Finally, we send a response on-chain.
+// Note that single-word responses automatically populate
+// the requestId.
+encode_response [type="ethabiencode" abi="(uint256 data)"  data="{\\"data\\": $(parse) }"]
+
+               
+encode_tx       [type="ethabiencode" abi="fulfillOracleRequest(bytes32 requestId, uint256 payment, address callbackAddress, bytes4 callbackFunctionId, uint256 expiration, bytes32 data)" data="{\\"requestId\\": $(decode_log.requestId), \\"payment\\": $(decode_log.payment), \\"callbackAddress\\": $(decode_log.callbackAddr), \\"callbackFunctionId\\": $(decode_log.callbackFunctionId), \\"expiration\\": $(decode_log.cancelExpiration), \\"data\\": $(encode_response)}"
+]
+
+submit_tx  [type="ethtx"  to="0xE31Cc94CFc1489B7Edd65f3D3a7aebE9A559F879" data="$(encode_tx)"]
+
+decode_log -> decode_cbor -> fetch -> parse -> encode_response -> encode_tx -> submit_tx
+"""
+externalJobID ="fc3ea215bb9e44e088107b29bb495e2d"

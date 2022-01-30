@@ -1,0 +1,96 @@
+Moralis.Cloud.define("ClaimBounty", async(request) => {
+const gameid = parseInt(request.params.gameid);
+const gameQuery = new Moralis.Query("Game");
+  const logger = Moralis.Cloud.getLogger();
+   logger.info(`The Parameters from Chainlink Node ${JSON.stringify(request)}`); 
+gameQuery.equalTo("gameid",gameid);
+const gameResult =  await gameQuery.first({useMasterKey:true});
+let value = 4;
+  if(gameResult)
+  {
+     //Player 1 won the game
+     if(gameResult.get("score1") > gameResult.get("score2"))
+       value = 0;
+    //Player 2 won the game 
+    if(gameResult.get("score1") < gameResult.get("score2"))
+       value = 1;
+    //Drawn Game
+     if(gameResult.get("score1") == gameResult.get("score2"))
+       value = 2;
+    
+     
+  }
+  return value;
+ });
+
+Moralis.Cloud.afterSave("GAMEID", async function(request) {
+    const gameid = request.object.get("gameid");
+    const player1 = request.object.get("player1");
+    const bounty = request.object.get("bounty");
+    const Game =  Moralis.Object.extend("Game");
+    const _game = new Game();
+  
+   if(request.object.get("confirmed")!=true)
+   {  
+      _game.set("player2","waiting");
+      _game.set("player1",player1);
+
+      _game.set("gameid",parseInt(gameid));
+      _game.set("bounty",parseInt(bounty));
+      _game.save();
+   }
+ });
+
+
+Moralis.Cloud.afterSave("GameStarted", async function(request) {
+  const gameid = parseInt(request.object.get("gameId"));
+  const player2 = request.object.get("player2");
+  const Game =  Moralis.Object.extend("Game");
+  const query = new Moralis.Query(Game)
+  query.equalTo("gameid",gameid);
+  
+  if(request.object.get("confirmed")!=true)
+   {  
+  
+      const result =  await query.first({useMasterKey:true});
+      result.set("update","canstart");
+      result.set("player2",player2);
+      result.save();
+   }
+ });
+
+Moralis.Cloud.define("playerDied", async(request) => {
+   const logger = Moralis.Cloud.getLogger();
+   logger.info(`The Parameters ${JSON.stringify(request.params)}`); 
+   const Game = Moralis.Object.extend("Game");
+  const query = new Moralis.Query(Game);
+  query.equalTo("gameid",request.params.gameid);
+  const game =  await query.first({useMasterKey:true});   
+   logger.info(`The game ${JSON.stringify(game)}`); 
+
+  //game.set("screen1",657);
+  if(request.params.player=="player1")
+   {
+      game.set("update","gameoverplayer1");
+      game.set("gameoverplayer1",true);
+   }else
+   {
+      game.set("update","gameoverplayer2");
+      game.set("gameoverplayer2",true);
+   }
+  
+   game.save(null,{useMasterKey:true}).then((a)=>{
+     const logger = Moralis.Cloud.getLogger();
+     logger.info(`The A game ${JSON.stringify(a)}`); 
+   
+   });
+});
+
+Moralis.Cloud.define("test", async(request) => {
+   const Game =  Moralis.Object.extend("Game");
+  const query = new Moralis.Query(Game)
+  query.equalTo("gameid",9);
+  const result =  await query.first({useMasterKey:true});
+  result.set("score1",12);
+  result.save();
+});
