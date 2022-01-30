@@ -7,7 +7,13 @@ import gameover from './sounds/gameover.mp3';
 import gamestart from './sounds/gamestart.mp3';
 import Moralis  from 'moralis';
 import { useParams,useNavigate } from "react-router-dom";
-import Bullet from './Bullet';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
+import { ASTEROID_CONTRACT,ASTEROID_ABI } from './contract';
 
 const startgame = new UIfx(
   gamestart,
@@ -53,6 +59,7 @@ export default  function Reacteroids()  {
     const asteroidCount = useRef(3);
     const [currentScore,setCurrentScore] = useState (0);
     const [topScore,setTopScore] = useState(localStorage['topscore'] || 0);
+    const [endgame,setEndGame]  = useState();
     const player1Score = useRef(0);
     const player2Score = useRef(0); 
     const [displayPlayer1Score,setDisplayPlayer1Score] = useState(0);
@@ -61,8 +68,7 @@ export default  function Reacteroids()  {
     const gameOverPlayer1 = useRef(false);
     const gameOverPlayer2 =  useRef(false);
     const [playersJoined,setPlayersJoined]  = useState(false);
-    const [ship,setShip] = useState([]);
-    const [ship2,setShip2] = useState([]);
+    const ship = useRef([]);
     const asteroids = useRef([]);
     const bullets = useRef([]);
     const particles = useRef([]);
@@ -74,12 +80,15 @@ export default  function Reacteroids()  {
     const appId= process.env.REACT_APP_MORALIS_APP_ID;
     const navigate = useNavigate();
     const subscribeToGame = useRef();
-    const subscribeToPlayerPosition = useRef();
-    const subscribeToBullets = useRef();
-    const subscribeToAsteroids = useRef();
-    const playerPosition= useRef();
-    const gotAsteroids = useRef();
-    const lastShipPosition  = useRef(false);
+    const [msgOpen,setMsgOpen]  = useState(false);
+    const [message,setMessage]  = useState();
+
+  const [msgTitle,setMsgTitle]  = useState();
+
+  const handleMsgClose = () => {
+    setMsgOpen(false);
+  };
+
   function handleResize(value, e){
     setScreen(
        {
@@ -97,10 +106,6 @@ export default  function Reacteroids()  {
     if(e.keyCode === KEY.UP     || e.keyCode === KEY.W) _keys.up    = value;
     if(e.keyCode === KEY.SPACE) _keys.space = value;
 
-   /* setKeys(
-      _keys
-    );*/
-
     keys.current = _keys;
   }
 
@@ -108,79 +113,13 @@ export default  function Reacteroids()  {
     if(playersJoined==true)
     {
       startGame();
-      playerPositionListener();
-      bulletListener();
       requestAnimationFrame(() => {update()});
       
     }
   },[playersJoined]);
   
-  async function asteroidListener()
-  {
-     const _Asteroid =  Moralis.Object.extend("Asteroid");
-     const query = new Moralis.Query(_Asteroid);
-     query.equalTo("gameid",gameInfo.current.get("gameid"));
-     subscribeToAsteroids.current = await query.subscribe();
-     subscribeToAsteroids.current.on('create', (object) => {
-       gotAsteroids.current = true;
-       const _asteroid = JSON.parse(object.get("asteroid"));
-       console.log(_asteroid);
-       const newAsteroid = new Asteroid({
-        size: 80,
-        position: {
-          x:_asteroid.position.x,
-          y:_asteroid.position.y
-           },
-        velocity:{
-         x:_asteroid.velocity.x,
-         y:_asteroid.velocity.y
-        },   
-        create: createAsteroid.bind(this), 
-        addScore: addScore.bind(this)
-      });
-       asteroids.current.push(newAsteroid);
-       console.log(`${player.current} Got Asteroids`)
-     });
-  }
-
-  async function bulletListener()
-  {
-    const ShipBullet = Moralis.Object.extend("Bullet");
-    const query = new Moralis.Query(ShipBullet);
-    query.equalTo("gameid",gameInfo.current.get("gameid"));
-   console.log(gameInfo.current.get("gameid"))
-    if(player.current.localeCompare("player1") == 0)
-       query.equalTo("player","player2"); //Listen to ship positions for player 2 if you are player 1
-    else
-       query.equalTo("player","player1"); //Listen to ship positions for player 1 if youare player 2
-     console.log(player) 
-    subscribeToBullets.current = await query.subscribe();
-    subscribeToBullets.current.on('create', (object) => {
-       const bullet = new Bullet({ship: (object.get("player").localeCompare("player1")== 0 ? ship[0]:ship[1] )});
-
-       bullets.current.push(bullet);  
-       //console.log("Got Position")
-    });
-  }
-
-  async function playerPositionListener()
-  { 
-    const ShipPosition = Moralis.Object.extend("ShipPosition");
-    const query = new Moralis.Query(ShipPosition);
-    query.equalTo("gameid",gameInfo.current.get("gameid"));
-   console.log(gameInfo.current.get("gameid"))
-    if(player.current.localeCompare("player1") == 0)
-       query.equalTo("player","player2"); //Listen to ship positions for player 2 if you are player 1
-    else
-       query.equalTo("player","player1"); //Listen to ship positions for player 1 if youare player 2
-     console.log(player) 
-    subscribeToPlayerPosition.current = await query.subscribe();
-    subscribeToPlayerPosition.current.on('create', (object) => {
-       playerPosition.current = object;  
-       console.log("Got Position")
-    });     
-  }
-
+ 
+ 
   //Initial setup and configuration when players enter the game
   useEffect(() => {
      async function getGameInfo()
@@ -208,24 +147,27 @@ export default  function Reacteroids()  {
      {
          let user = Moralis.User.current();
          let ethAddress  =user.get("ethAddress");
-         asteroidListener();     
          if(result.get("player1").localeCompare(ethAddress) !=0 && result.get("player2").localeCompare(ethAddress) !=0)
          {
              navigate("/"); //Navigate back to the lobby because you haven't joined or created this game
          }
          else
          {
-
+           if(result.get("over")==true)
+             navigate("/")
+             
           if(result.get("player1").localeCompare(ethAddress) ==0 )
           {
              player.current ="player1";
 
-         
+             
           }
 
           if(result.get("player2").localeCompare(ethAddress) ==0 )
           {
              player.current="player2";
+             result.set("update","player2");
+             result.save();
              setPlayersJoined(true);  
 
           }
@@ -243,15 +185,37 @@ export default  function Reacteroids()  {
                 if(object.get("update").localeCompare("score1") == 0)
                 {
                      setDisplayPlayer1Score(object.get("score1"));
+                     if(player.current.localeCompare("player1") !=0)
+                       player1Score.current = (object.get("score1"));
+                  
    
                 }
    
                 if(object.get("update").localeCompare("score2") == 0)
                 {
                      setDisplayPlayer2Score(object.get("score2"));
-   
+                     if(player.current.localeCompare("player2") !=0)
+                     player2Score.current = (object.get("score2"));
+                  
+ 
+                }
+
+
+               if(object.get("update").localeCompare("gameoverplayer1") == 0)
+                {
+                    //alert("1")
+                    gameOverPlayer1.current =true;
+                    gameOverPlayer2.current = object.get("gameoverplayer2");
+                    gameOver("player1");
                 }
                
+                if(object.get("update").localeCompare("gameoverplayer2") == 0)
+                {
+                  //alert(2);
+                  gameOverPlayer1.current = object.get("gameoverplayer1");
+                  gameOverPlayer2.current = true;
+                  gameOver("player2");
+                }
                });
    
 
@@ -274,14 +238,6 @@ export default  function Reacteroids()  {
       if(subscribeToGame.current)
         subscribeToGame.current.unsubscribe();
 
-      if(subscribeToPlayerPosition.current)
-         subscribeToPlayerPosition.current.unsubscribe();
-
-      if(subscribeToBullets.current)
-         subscribeToBullets.current.unsubscribe(); 
-      
-      if(subscribeToAsteroids.current)
-         subscribeToAsteroids.current.unsubscribe();        
     }
   },[])
 
@@ -290,8 +246,7 @@ export default  function Reacteroids()  {
     //console.log(context)
     const _context = context.current;
     const _keys = keys;
-    const _ship = ship[0];
-    const _ship2 = ship2[0];
+    const _ship = ship.current[0];
     _context.save();
      
     //const ratio = (screen.ratio > 1 ? screen.ratio : screen.ratio);
@@ -313,21 +268,18 @@ export default  function Reacteroids()  {
       //Player 1 generates the asteroids.  
       //If player one's game is over player 2 generates them.
       
-      if(gotAsteroids.current)
         generateAsteroids(asteroidCount.current);
-      gotAsteroids.current  =false; 
     }
 
     // Check for colisions
     checkCollisionsWith(bullets.current, asteroids.current,"bullets");
-    checkCollisionsWith(ship,asteroids.current,"ship");
-    //checkCollisionsWith(ship2, asteroids);
-
+    checkCollisionsWith(ship.current,asteroids.current,"ship");
+    
     // Remove or render
     updateObjects(particles.current, 'particles')
     updateObjects(asteroids.current, 'asteroids')
     updateObjects(bullets.current, 'bullets')
-    updateObjects(ship, 'ship')
+    updateObjects(ship.current, 'ship')
     //this.updateObjects(this.ship2,'ship2')
     _context.restore();
 
@@ -339,7 +291,6 @@ export default  function Reacteroids()  {
     console.log(_player);
     console.log(points);
     console.log(player.current)
-    
      const gScore = gameInfo.current;
 
       if(player.current.localeCompare(_player)==0 && player.current.localeCompare("player1")==0)
@@ -358,7 +309,7 @@ export default  function Reacteroids()  {
          gScore.set("update","score2");
       }
       
-      gScore.save();
+     gScore.save();
       
 
     
@@ -373,67 +324,70 @@ export default  function Reacteroids()  {
       gameOverPlayer2.current=false;
     
     // Make ship
-    let ship = new Ship({name:'player1',
+    let _ship = new Ship({name:player.current,
       position: {
-        x: (screen.width/4)*3,
+        x: screen.width/2,
         y: screen.height/2
       },
       create: createObject.bind(this),
-      onDie: gameOver.bind(this,"player1")
+      onDie: playerDied.bind(this,player.current,gameInfo.current)
     });
 
 
         
-    createObject(ship, 'ship');
+    createObject(_ship, 'ship');
 
-    let ship2 = new Ship({name:'player2',
-      position: {
-        x: screen.width/4,
-        y: screen.height/2
-      },
-      create: createObject.bind(this),
-      onDie: gameOver.bind(this,"player2")
-    });
-    createObject(ship2, 'ship');
-
-
+    
     // Make asteroids
     asteroids.current = [];
-    if(player.current.localeCompare('player1') ==0)
     generateAsteroids(asteroidCount.current);
+  }
+  
+  async function playerDied(player,_game)
+  {
+     const x = await Moralis.Cloud.run("playerDied",{gameid:_game.get("gameid"),player:player});
+     if(player.current.localeCompare("player1")==0)
+        gameOverPlayer1.current = true;
+
+     if(player.current.localeCompare("player2")==0)
+        gameOverPlayer2.current = true;
+   
+
   }
 
   function gameOver(player){
 
-    //alert(player)
-    if(player == "player1")
-
-     gameOverPlayer1.current=true;
-  
-
-    else if(player=="player2")
-   
-      gameOverPlayer2.current=true;
+   //alert(`${gameOverPlayer1.current}  ${gameOverPlayer2.current}`)
+   if(gameOverPlayer1.current && gameOverPlayer2.current)
+   {
+      const _game = gameInfo.current;
+      _game.set("over",true);
+      _game.set("update","gameover");
+      _game.save(); 
+      setEndGame(true);
+   }
      
-   /*this.setState({
-      inGame: false,
-    });*/
 
-    // Replace top score
-    if(currentScore > topScore){
-    
-        setTopScore(currentScore);
-    
-      localStorage['topscore'] = currentScore;
-    }
-
-    if(gameOverPlayer1 && gameOverPlayer2)
       _endgame.play();
+  }
+
+  async function claimBounty()
+  {
+    const web3 = await Moralis.enableWeb3();
+    const contract = new web3.eth.Contract(ASTEROID_ABI, ASTEROID_CONTRACT);
+    let user = Moralis.User.current();
+
+    contract.methods.claimBounty(gameInfo.current.get("gameid"),gameInfo.current.get("gameid").toString()).send({from:user.get("ethAddress"),gasLimit:3000000})
+    .on('error', function(error, receipt) { // If the transaction was rejected by the network with a receipt, the second parameter will be the receipt.
+    }).on('receipt', function(error, receipt) {
+         //Waiting for live query then proceed to game
+        navigate("/");
+     });   
   }
 
   function generateAsteroids(howMany){
     let asteroids = [];
-    let _ship = ship[0];
+    let _ship = ship.current[0];
     for (let i = 0; i < howMany; i++) {
       let asteroid = new Asteroid({
         size: 80,
@@ -441,57 +395,36 @@ export default  function Reacteroids()  {
           x: randomNumBetweenExcluding(0, screen.width, _ship.position.x-60, _ship.position.x+60),
           y: randomNumBetweenExcluding(0, screen.height, _ship.position.y-60, _ship.position.y+60)
         },
-        create: createAsteroid.bind(this),
+        create: createObject.bind(this),
         addScore: addScore.bind(this)
       });
-      //createObject(asteroid, 'asteroids');
-      //save asteroid to database
-      const _Asteroid = Moralis.Object.extend("Asteroid");
-      const _asteroid = new _Asteroid();
-      _asteroid.set("gameid",gameInfo.current.get("gameid"));
-      _asteroid.set("asteroid",JSON.stringify(asteroid));
-      _asteroid.save();
+      createObject(asteroid, 'asteroids');
+      
     }
   }
   
- function createAsteroid(item)
-{
-   asteroids.current.push(item);
-}
-
+ 
   function createObject(item, group){
     if(group=='ship')
     {
-      let _ship = ship;
-      _ship.push(item); 
-      setShip(_ship);
+     ship.current.push(item);
     }  
 
     if(group=='bullets')
     {
-      //let _bullets = bullets.current;
+     
       bullets.current.push(item);
-      const _Bullet = Moralis.Object.extend("Bullet");
-      const _bullet = new _Bullet();
-      _bullet.set("player",player.current);
-      _bullet.set("gameid",gameInfo.current.get("gameid"));
-      _bullet.set("bullet",JSON.stringify(item));  
-      _bullet.save();
-      //bullets.current = _bullets;
-    }
+     }
 
-   /* if(group == "asteroids")
+    if(group == "asteroids")
     {
        asteroids.current.push(item);
-    }*/
+    }
 
   }
 
   function updateObjects(items, group){
-   /* if(group=='bullets')
-    console.log(items.ship);
-
-    */
+   
     let index = 0;
     for (let item of items) {
       if (item.delete) {
@@ -521,10 +454,7 @@ export default  function Reacteroids()  {
 
         if(group == 'ship')
         {
-            let _ship = ship;
-
-           setShip( _ship.splice(index,1));
-            
+           ship.current =[];   
         }
 
 
@@ -536,111 +466,11 @@ export default  function Reacteroids()  {
        
         if(group == 'ship') 
         {
-          if(items[index].name == player.current) 
-          {
              items[index].render({keys:keys.current,screen:screen,context:context.current});
-            // console.log(items[index]);
-             if(keys.current.up  || keys.current.space   || keys.current.left  || keys.current.right)
-             {
-
-                              
-                const ShipPosition = Moralis.Object.extend("ShipPosition");
-                const shipPos = new ShipPosition();
-                shipPos.set("gameid",gameInfo.current.get("gameid"));
-                shipPos.set("positionx",items[index].position.x);
-                shipPos.set("positiony",items[index].position.y);
-                shipPos.set("player",items[index].name);
-                shipPos.set("rotation",items[index].rotation);
-                shipPos.set("rotationspeed",items[index].rotationSpeed);
-                shipPos.set("speed",items[index].speed);
-                shipPos.set("inertia",items[index].inertia);
-                shipPos.set("velocityy",items[index].velocity.y);
-                shipPos.set("velocityx",items[index].velocity.x);
-
-                shipPos.set("radius",items[index].radius);
-                shipPos.set("lastshot",items[index].lastShot);
-                if(lastShipPosition.current) 
-                {
-                   if(
-                    lastShipPosition.current.get("positionx") != shipPos.get("positionx") ||
-                    lastShipPosition.current.get("positiony") != shipPos.get("positiony") ||
-                    lastShipPosition.current.get("velocityx")!= shipPos.get("velocityx") ||
-                    lastShipPosition.current.get("velocityy") != shipPos.get("velocityy") ||
-                 lastShipPosition.current.get("rotation") != shipPos.get("rotation") ||
-
-                    lastShipPosition.current.get("rotationspeed") != shipPos.get("rotationspeed") ||
-                    lastShipPosition.current.get("gameid") != shipPos.get("gameid") ||
-                    lastShipPosition.current.get("speed") != shipPos.get("speed") ||
-                    lastShipPosition.current.get("inertia") != shipPos.get("inertia") ||
-                    lastShipPosition.current.get("radius") != shipPos.get("radius") ||
-                    lastShipPosition.current.get("lastshot") != shipPos.get("lastshot"))
-                  
-                    
-                   {
-                      shipPos.save();
-                      lastShipPosition.current = shipPos;
-                     // console.log("New Position")
-                      //console.log(lastShipPosition.current);
-                     // console.log(shipPos)
-                   }  
-                 else
-                 {
-                   // console.log("Not old or new")
-
-                   // console.log(lastShipPosition.current.get("positionx"))
-                 }    
-              }
-              else
-              {
-                console.log("Last")
-                shipPos.save();
-                lastShipPosition.current = shipPos;
-
-              }         
-             }
            
-           /*  if(keys.up || keys.space || keys.left || keys.right)
-             {
-                const ShipPosition = Moralis.Object.extend("KeysPressed");
-                const shipPos = new ShipPosition();
-                shipPos.set("keys",JSON.stringify(keys));
-                shipPos.set("gameid",gameInfo.current.get("gameid"));
-                shipPos.set("player",player);
-                shipPos.save();
-             }*/   
-          }
-          else
-          {
-            //items[index].position.x +=1;
-            if(playerPosition.current)
-            {
-              items[index].position.x = playerPosition.current.get("positionx");
-              items[index].position.y = playerPosition.current.get("positiony");
-              items[index].rotation = playerPosition.current.get("rotation");
-              items[index].rotationSpeed = playerPosition.current.get("rotationspeed");
-              items[index].speed = playerPosition.current.get("speed");
-              items[index].inertia = playerPosition.current.get("inertia");
-              items[index].velocity.x = playerPosition.current.get("velocityx");
-        
-              items[index].velocity.y = playerPosition.current.get("velocityy");
-              items[index].radius = playerPosition.current.get("radius");
-              items[index].lastShot = playerPosition.current.get("lastshot");
-              //console.log(playerPosition)
-            }
-               
-            /* console.log(items[index])*/
-            // console.log("what")
-             /*let k={} ;
-             if(playerPosition.current)
-             {
-                 k = JSON.parse(playerPosition.current.get("keys"));  
-                 console.log("not")
-             }*/
-
-             items[index].render({keys:{},screen:screen,context:context.current});
-             playerPosition.current= false;
-          }
+           
         }
+
         if(group=='bullets')
         {
            items[index].render({screen:screen,context:context.current}); 
@@ -715,15 +545,21 @@ export default  function Reacteroids()  {
   }
 
   function Endgame() {
+    console.log(`${gameOverPlayer1.current} ${gameOverPlayer2.current}`)
     let endgame;
     let message;
-
-    if (currentScore <= 0) {
-      message = '0 points... So sad.';
-    } else if (currentScore >= topScore){
-      message = 'Top score with ' + currentScore + ' points. Woo!';
+    let showClaimButton = false;
+    if (displayPlayer1Score > displayPlayer2Score) {
+      message = `Congratulations Player 1 -  ${displayPlayer1Score} points`;
+      if(player.current == "player1")
+        showClaimButton = true;
+    } else if (displayPlayer2Score > displayPlayer1Score){
+      message = `Congratulations Player 2 - ${displayPlayer2Score} points`;
+      if(player.current == "player2")
+        showClaimButton = true;
     } else {
-      message = currentScore + ' Points though :)'
+      message = 'Draw Game :)';
+      showClaimButton = true;
     }
 
     if(gameOverPlayer1.current && gameOverPlayer2.current ){
@@ -731,9 +567,9 @@ export default  function Reacteroids()  {
         <div className="endgame">
           <p>Game over, man!</p>
           <p>{message}</p>
-          <button
-            onClick={ startGame.bind(this) }>
-            try again?
+          <button hidden={!showClaimButton}
+            onClick={ claimBounty.bind(this) }>
+            Claim Bounty
           </button>
         </div>
       )
@@ -759,6 +595,17 @@ export default  function Reacteroids()  {
           width={screen.width * screen.ratio}
           height={screen.height * screen.ratio}
         />
+         <Dialog open={msgOpen} onClose={handleMsgClose}>
+        <DialogTitle class="dialogHeaderText">{msgTitle}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            <span class="dialogText"> {message}</span>
+          </DialogContentText>
+          </DialogContent>
+        <DialogActions>
+          <Button class="dialogButtonText" onClick={handleMsgClose}>Ok</Button>
+        </DialogActions>
+      </Dialog>
       </div>
     );
   

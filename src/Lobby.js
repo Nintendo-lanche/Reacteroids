@@ -11,7 +11,7 @@ import UIfx from 'uifx'
 import space from './sounds/space.mp3';
 import { useTable,usePagination } from 'react-table';
 import Moralis from 'moralis';
- 
+import { ASTEROID_CONTRACT,ASTEROID_ABI } from './contract';
 
 
 const spacesound = new UIfx(
@@ -27,7 +27,13 @@ const appId= process.env.REACT_APP_MORALIS_APP_ID;
 export default function Lobby() {
   const [authenticated,setAuthenticated] = useState(false) ;
   const [gameData,setGameData] = useState([]);
+  const [msgOpen,setMsgOpen]  = useState(false);
+  const [message,setMessage]  = useState();
 
+  const [msgTitle,setMsgTitle]  = useState();
+
+  const subscribeToGame = useRef();
+  
 async function logout()
 {
   Moralis.User.logOut();
@@ -41,7 +47,6 @@ async function login()
 {
   let user = Moralis.User.current();
   if (!user) {
-    alert("not user")
     await Moralis.enableWeb3();
     const chainId = await Moralis.getChainId();
    // alert(chainId)
@@ -65,21 +70,70 @@ useEffect(()=>{
   if(user)
   {
     setAuthenticated(true);
-  } 
-   const Game = Moralis.Object.extend("Game");
+  }
+  
+  const Game = Moralis.Object.extend("Game");
+   
+  async function getGames()
+  {
    const queryGames = new Moralis.Query(Game);
+   const web3 = await Moralis.enableWeb3();
+
    queryGames.equalTo("player2", "waiting");
    let games = [];
    queryGames.find().then(function(object){
       object.forEach((_game)=>{
         console.log(_game.get("player1"))
           games.push({col1:_game.get("player1"),col2:_game.get("player2"),
-          col3:_game.get("bounty"),id:_game.id});
+          col3:web3.utils.fromWei(_game.get("bounty").toString()),id:_game.id,gameid:_game.get("gameid")});
       });
       console.log(games)
       setGameData(games);
    });
 
+}
+   async function getGameInfo()
+   {
+    
+    
+   // const player1Query = new Moralis.Query("Game");
+    //const player2Query = new Moralis.Query("Game");
+    //player1Query.equalTo("player1",user.get("ethAddress") );
+    //player2Query.equalTo("player2",user.get("ethAddress") );
+    const query = new Moralis.Query("Game");//Moralis.Query.or(player2Query,player1Query);
+    //const query = player1Query;
+    //query.equalTo("player",user.get("ethAddress") );
+    //subscribeToJoinGame.current = await query.subscribe();
+    subscribeToGame.current = await query.subscribe();
+    subscribeToGame.current.on('create', (object) => {
+    
+          if(object.get("player1").localeCompare(user.get("ethAddress"))==0)
+          navigate(`/game/${object.id}`);
+      
+
+    });
+
+    subscribeToGame.current.on('update', (object) => {
+      
+        if(object.get("update").localeCompare("canstart")==0 && object.get("player2").localeCompare(user.get("ethAddress"))==0)   
+         navigate(`/game/${object.id}`);
+  
+
+   });
+    
+  }
+   getGames();
+   getGameInfo();
+    return function cleanup()
+    {
+      if(subscribeToGame.current)
+        subscribeToGame.current.unsubscribe();
+
+       
+     }
+
+  
+  
 },[])
 
 
@@ -89,64 +143,69 @@ useEffect(()=>{
     height: window.innerHeight,
     ratio: window.devicePixelRatio || 1,
   });
+
   const [open, setOpen] = useState(false);
+  
   const bounty = useRef();
   const navigate = useNavigate();
   const handleClickOpen = () => {
     setOpen(true);
   };
 
-  function handleJoinGame(gid)
-  {
-     let user = Moralis.User.current();
+  async function handleJoinGame(gameid,_bounty)
 
-    const Game = Moralis.Object.extend("Game");
-    const g = new Game();
-    g.set("id",gid);
-    g.set("update","player2");
-    g.set("player2",user.get("ethAddress"));
-    g.save().then((obj)=>{
-      navigate(`/game/${gid}`);
-    });
+  {
+
+    const web3 = await Moralis.enableWeb3();
+    const contract = new web3.eth.Contract(ASTEROID_ABI, ASTEROID_CONTRACT);
+    let user = Moralis.User.current();
+
+    contract.methods.initPlayerTwo(gameid).send({from:user.get("ethAddress"),gasLimit:3000000,value:web3.utils.toWei(_bounty)})
+    .on('error', function(error, receipt) { // If the transaction was rejected by the network with a receipt, the second parameter will be the receipt.
+    }).on('receipt', function(error, receipt) {
+         //Waiting for live query then proceed to game
+        
+     });          
+    
+ 
+
     
   }
+
+  const handleMsgClose = () => {
+    setMsgOpen(false);
+  };
+
   const handleClose = () => {
     setOpen(false);
   };
-  const handleCreate = () =>{
+  const handleCreate = async () =>{
      console.log(bounty)
     if(bounty.current.value !=null && bounty.current.value != '')
     {
-        let user = Moralis.User.current();
+       const web3 = await Moralis.enableWeb3();
+       const contract = new web3.eth.Contract(ASTEROID_ABI, ASTEROID_CONTRACT);
+       let user = Moralis.User.current();
 
-        const Game  = Moralis.Object.extend("Game");
-        const game = new Game();
-        game.set("gameid",parseInt(bounty.current.value));
-        game.set("player1",user.get("ethAddress"));
-        game.save().then(()=>
-         { 
-            setOpen(false);
-            navigate("/game/1")
-         })
-    }
+       contract.methods.initPlayerOne(web3.utils.toWei(bounty.current.value)).send({from:user.get("ethAddress"),gasLimit:3000000,value:web3.utils.toWei(bounty.current.value)})
+       .on('error', function(error, receipt) { // If the transaction was rejected by the network with a receipt, the second parameter will be the receipt.
+       
+        setMessage("Create Game.");
+        setMsgOpen(true);
+        setMsgTitle("Error Creating Game");
+
+       }).on('receipt', function(error, receipt) {
+            //Waiting for live query then proceed to game
+        });          
+       
+    
+
+
+           }
       }
   const data = useMemo(
     () => 
-      /*{
-        col1: 'Hello',
-        col2: 'World',
-        col3: 12
-      },
-      {
-        col1: 'react-table',
-        col2: 'rocks',
-        col3: 12
-      },
-      {
-        col1: 'whatever',
-        col2: 'you want',
-        col3: 12
-      },*/
+      
       gameData
     ,
 
@@ -161,10 +220,10 @@ useEffect(()=>{
       },
       {
         Header: 'Player 2',
-        accessor: 'id',
+        accessor: 'gameid',
         Cell: ({ cell }) => (
             <button className="joinbutton" hidden={!authenticated}
-            onClick ={() => handleJoinGame(cell.row.values.id)}
+            onClick ={() => handleJoinGame(cell.row.values.gameid,cell.row.values.col3)}
             >
               Join Game
             </button>
@@ -173,6 +232,7 @@ useEffect(()=>{
       {
         Header: 'Bounty',
         accessor: 'col3', // accessor is the "key" in the data
+        Cell: ({ cell }) => (<span>{cell.row.values.col3} AVAX</span> )
       }
     ],
     [authenticated,gameData]
@@ -204,7 +264,7 @@ useEffect(()=>{
   const canvas = useRef();
     console.log(screen);
         return (
-            <div>
+            <div >
             <span className="welcome current-score" >Welcome</span>
 
             <span className="titleLobby top-score" >Asteroids</span>
@@ -212,12 +272,8 @@ useEffect(()=>{
              Game Lobby
               
             </span>
-            <canvas ref={canvas}
-          width={screen.width * screen.ratio}
-          height={screen.height * screen.ratio}
-        />
+           
 
-// apply the table props
 <div className="creategame" hidden={!authenticated}>
           <button
           onClick={handleClickOpen}
@@ -240,7 +296,8 @@ useEffect(()=>{
            >
             Logout
           </button>
-        </div>     
+        </div>
+   <div>          
    <table  className="gametable table" {...getTableProps()}>
      <thead>
        {// Loop over the header rows
@@ -281,8 +338,7 @@ useEffect(()=>{
          )
        })}
      </tbody>
-   </table>
-    {/* 
+     <tfoot> <tr><td colspan="3"> {/* 
         Pagination can be built however you'd like. 
         This is just a very basic UI implementation:
       */}
@@ -330,14 +386,17 @@ useEffect(()=>{
           ))}
         </select>
       </div>
-   
+      </td></tr>
+  </tfoot>
+   </table>
+      </div>
       <div>
       
-      <Dialog open={open} onClose={handleClose}>
-        <DialogTitle>Create Game</DialogTitle>
+      <Dialog  open={open} onClose={handleClose}>
+        <DialogTitle class="dialogHeaderText">Create Game</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-           Create a new 1v1 Asteroid Game. Please enter your bounty.
+          <DialogContentText >
+           <span class="dialogText">Create a new 1 vs 1 Asteroid Game. Please enter your bounty.</span>
           </DialogContentText>
           <TextField
           inputRef={bounty}
@@ -351,10 +410,23 @@ useEffect(()=>{
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button onClick={handleCreate}>Create</Button>
+          <Button class = "dialogButtonText" onClick={handleClose}>Cancel</Button>
+          <Button class ="dialogButtonText" onClick={handleCreate}>Create</Button>
         </DialogActions>
       </Dialog>
+
+      <Dialog open={msgOpen} onClose={handleMsgClose}>
+        <DialogTitle class="dialogHeaderText">{msgTitle}</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            <span class="dialogText"> {message}</span>
+          </DialogContentText>
+          </DialogContent>
+        <DialogActions>
+          <Button class="dialogButtonText" onClick={handleMsgClose}>Ok</Button>
+        </DialogActions>
+      </Dialog>
+    
     </div>
    
             </div>
