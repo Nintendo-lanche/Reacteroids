@@ -13,7 +13,7 @@ jobs:
   build_test:
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
-     env:
+    env:
       REACT_APP_MORALIS_APP_ID: ${{secrets.REACT_APP_MORALIS_APP_ID}}
       REACT_APP_MORALIS_SERVER_URL: ${{secrets.REACT_APP_MORALIS_SERVER_URL}}
       NODE_OPTIONS: '--max_old_space_size=4096'
