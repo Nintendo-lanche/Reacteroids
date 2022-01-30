@@ -1,18 +1,40 @@
-# Reacteroids
-A implementation of the classic Asteroids game using React and Canvas in es6
+# Getting Started with Create React App
 
-This was built with using the react transform boilerplate from
-https://github.com/gaearon/react-transform-boilerplate
+This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
-## Demo
+## Available Scripts
 
-http://chriz001.github.io/Reacteroids/
+In the project directory, you can run:
 
-## Install
+### `npm start`
 
-npm install
-npm start
+Runs the app in the development mode.\
+Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
 
-## Play
+The page will reload if you make edits.\
+You will also see any lint errors in the console.
 
-Open http://localhost:3000
+
+
+### `npm run build`
+
+Builds the app for production to the `build` folder.\
+It correctly bundles React in production mode and optimizes the build for the best performance.
+
+The build is minified and the filenames include the hashes.\
+Your app is ready to be deployed!
+
+See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+
+## Environmental Variables
+
+ REACT_APP_MORALIS_APP_ID
+ 
+ REACT_APP_MORALIS_SERVER_URL
+ 
+ 
+ You will need API Keys from:
+
+
+ www.moralis.io
+
